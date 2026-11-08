@@ -13,7 +13,7 @@ Memory ETL is a functional module of the Agent Memory Service which facilitate o
 - A Redis Agent Memory service (Data Plane URL, agent API key and Store ID)
 - At least one extractor already created in the store, with its name and ID
 - A Redis database holding the long-term memories, reachable from this machine (needed only for the metadata step)
-- A call transcript dataset in the format below
+- One or more call transcript dataset files in the `data/` folder, in the format below
 
 ## Setup
 
@@ -45,18 +45,32 @@ Keep `.env` out of version control, since it holds secrets.
 
 ## Input format
 
-The dataset is a JSON file with a `calls` array, defined by `schema-dataset.v2.json`. Each call follows `schema-call.v2.json`. A sample is in `agent-turns.json`.
+Dataset files go in the `data/` folder. A sample is `data/agent-turns.json`.
+
+- Each file is JSON with a `calls` array, defined by `schema-dataset.v2.json`.
+- Each call follows `schema-call.v2.json`.
+- All `*.json` files in `data/` are processed, so they must all share this schema.
 
 ## Usage
 
 ```powershell
-python load_calls.py [dataset.json] [options]
+python load_calls.py [data_folder_or_file] [options]
 ```
 
-The dataset defaults to `agent-turns.json`. When run, the script prompts for:
+By default the script loads every `.json` file in the `data/` folder, in name order, and prints how many calls each file contributed. You can pass a different folder or a single file instead.
+
+- A file that is not a valid dataset is skipped with a warning.
+- A `session_id` that appears more than once is processed once, because it is the `documentId`.
+- An empty folder stops the run with an error.
+
+When run, the script prompts for:
 
 1. **Extractor name**, listing the names from `EXTRACTOR_NAMES`. The matching ID is sent as `extractorId`.
-2. **Version/revision** (default `1`).
+2. **Mode**, with option 1 as the default:
+   - `[1] Single Extraction`: submits every call once. It then asks for the **version/revision** (default `1`) and prints each ingestion ID and the memory keys per call.
+   - `[2] Simulate Bulk Load`: asks for the **number of batches**. Each batch submits every call again with the version `batch-<batch number>` (`batch-1`, `batch-2`, ...). No per-ingestion IDs or per-call keys are printed. Once every document is submitted it prints `All N documents submitted in MM:SS (min:sec)`. After every result is received it prints one summary line, such as `Submitted 3 batches (36 documents); all callbacks received: 36 memory keys extracted, 0 errors.` It then prints `Total time from first submission to last callback: MM:SS (min:sec)`. The `--revision` option does not apply in this mode.
+
+In both modes the script then asks whether to add metadata. In bulk mode, a document's keys from all batches are updated together.
 
 | Option | Effect |
 |:--|:--|
@@ -64,11 +78,12 @@ The dataset defaults to `agent-turns.json`. When run, the script prompts for:
 | `--revision VALUE` | Skip the version prompt |
 | `--only SESSION_ID [...]` | Process only these calls |
 | `--limit N` | Process only the first N calls |
+| `--log-file PATH` | Error log file (default `load_calls.log` next to the script) |
 | `--poll-seconds`, `--max-polls` | Polling interval (default 10 s) and number of polls (default 90) |
 
 ## What it does
 
-1. **Render:** each call is turned into a `text/plain` transcript with its location, caller, time, language and outcome, followed by the dialogue as `[role] text` lines.
+1. **Render:** each call from every file is turned into a `text/plain` transcript with its location, caller, time, language and outcome, followed by the dialogue as `[role] text` lines.
 2. **Submit:** each transcript is posted to `/iris/data/v1/agent-memory/stores/<store>/document-ingestions`. Retries with backoff cover connection errors and 502/503/504 responses.
 
    | API field | Value |
@@ -96,3 +111,4 @@ The dataset defaults to `agent-turns.json`. When run, the script prompts for:
 - A document and revision can be submitted only once. To re-extract a call, use a new version.
 - To retry a failed call, run `python load_calls.py --only <session_id>`.
 - The metadata step overwrites any existing `namespace` and `session_id` fields on those HASHes.
+- Errors are written to the log file: failed submissions, ingestions that finish as `FAILED` (with the service's status details) and errors while collecting results. Each entry is timestamped and names the `session_id`.
