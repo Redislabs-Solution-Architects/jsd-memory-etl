@@ -45,7 +45,7 @@ Keep `.env` out of version control, since it holds secrets.
 
 ## Input format
 
-The dataset is a JSON file with a `calls` array, defined by `schema-dataset.v2.json`. Each call follows `schema-call.v2.json`. A sample is in `slang-synthetic-v2.json`.
+The dataset is a JSON file with a `calls` array, defined by `schema-dataset.v2.json`. Each call follows `schema-call.v2.json`. A sample is in `agent-turns.json`.
 
 ## Usage
 
@@ -53,7 +53,7 @@ The dataset is a JSON file with a `calls` array, defined by `schema-dataset.v2.j
 python load_calls.py [dataset.json] [options]
 ```
 
-The dataset defaults to `slang-synthetic-v2.json`. When run, the script prompts for:
+The dataset defaults to `agent-turns.json`. When run, the script prompts for:
 
 1. **Extractor name**, listing the names from `EXTRACTOR_NAMES`. The matching ID is sent as `extractorId`.
 2. **Version/revision** (default `1`).

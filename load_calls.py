@@ -26,7 +26,7 @@ from dotenv import load_dotenv
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-DEFAULT_FILE = "slang-synthetic-v2.json"
+DEFAULT_FILE = "agent-turns.json"
 DONE_STATES = {"SUCCEEDED", "PARTIAL", "FAILED"}
 
 
@@ -123,7 +123,7 @@ def submit(cfg, session, call, extractor_id, revision) -> dict:
         "mediaType": "text/plain",
         "ownerId": call["caller_key"],
         "extractorId": extractor_id,
-        "idempotencyKey": f"{session_id}-revision-{revision}",
+        "idempotencyKey": f"{session_id}-revision-{revision}-{extractor_id}",
     }
     return check(session.post(f"{cfg.base}/document-ingestions", json=body, timeout=60))
 
