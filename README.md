@@ -1,4 +1,4 @@
-# jsd-memory-etl
+# Memory ETL
 Memory ETL is a functional module of the Agent Memory Service which facilitate offline memory extractions into standard long term memories.
 
 `load_calls.py` loads call transcripts from a JSON dataset into the Redis Agent Memory ETL API, one document per call, and then optionally tags the extracted memories in Redis with metadata.
@@ -68,7 +68,7 @@ When run, the script prompts for:
 1. **Extractor name**, listing the names from `EXTRACTOR_NAMES`. The matching ID is sent as `extractorId`.
 2. **Mode**, with option 1 as the default:
    - `[1] Single Extraction`: submits every call once. It then asks for the **version/revision** (default `1`) and prints each ingestion ID and the memory keys per call.
-   - `[2] Simulate Bulk Load`: asks for the **number of batches**. Each batch submits every call again with the version `batch-<batch number>` (`batch-1`, `batch-2`, ...). No per-ingestion IDs or per-call keys are printed. Once every document is submitted it prints `All N documents submitted in MM:SS (min:sec)`. After every result is received it prints one summary line, such as `Submitted 3 batches (36 documents); all callbacks received: 36 memory keys extracted, 0 errors.` It then prints `Total time from first submission to last callback: MM:SS (min:sec)`. The `--revision` option does not apply in this mode.
+   - `[2] Simulate Bulk Load`: asks for the **Number of Documents** (the total number of API submissions) and the **Batch Size**. The submissions are sent in batches of that size, and the next batch is sent only after the status of every submission in the current batch is final (`SUCCEEDED`, `PARTIAL` or `FAILED`). Submission _i_ uses call _i_ modulo the number of calls, so a number larger than the number of calls goes around the calls again. Each pass over the calls uses the version `batch-<UTS>-<pass number>`, where `<UTS>` is the Unix timestamp when the run started (for example `batch-1794167000-1`, `batch-1794167000-2`), so versions are unique across runs. No per-ingestion IDs or per-call keys are printed. Once the last submission is sent it prints `All N documents submitted in MM:SS (min:sec)`, measured from the first submission. After every result is received it prints one summary line, such as `Submitted 36 documents in 4 batches of up to 10; all callbacks received: 36 memory keys extracted, 0 errors.` It then prints `Total time from first submission to last callback: MM:SS (min:sec)`. The `--revision` option does not apply in this mode.
 
 In both modes the script then asks whether to add metadata. In bulk mode, a document's keys from all batches are updated together.
 
@@ -95,7 +95,7 @@ In both modes the script then asks whether to add metadata. In bulk mode, a docu
    | `mediaType` | `text/plain` |
    | `idempotencyKey` | `<session_id>-revision-<revision>-<extractor_id>` |
 
-3. **Wait:** extraction is asynchronous. The script polls each ingestion until it reports `SUCCEEDED`, `PARTIAL` or `FAILED`.
+3. **Wait:** extraction is asynchronous. The script polls each ingestion until it reports `SUCCEEDED`, `PARTIAL` or `FAILED`. In a terminal, a live counter, `Memories Extracted : n`, updates in place as results arrive.
 4. **Report:** it prints the memory keys for each call, or `No Memory Extracted`. A call that failed shows its error instead.
 5. **Add metadata (optional):** the script keeps a map of document ID to memory keys. After reporting, it asks whether to add metadata. On `y` it connects to the Redis database and, for each memory HASH at `memory:<IRIS_STORE_ID>:ltm:<memory key>`, sets:
 
