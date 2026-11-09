@@ -280,7 +280,12 @@ def main() -> None:
     bulk = choose_mode() == "bulk"
     if bulk:
         total_docs = ask_positive("Number of Documents: ")
-        batch_size = min(ask_positive("Batch Size: "), total_docs)
+        raw = resolve_env("BULK_BATCH_SIZE").strip()
+        if not raw.isdigit() or int(raw) < 1:
+            sys.exit("BULK_BATCH_SIZE must be set to a whole number greater than 0 "
+                     f"(in .env or the environment); got '{raw}'.")
+        batch_size = min(int(raw), total_docs)
+        print(f"Batch size: {batch_size} (BULK_BATCH_SIZE)")
         run_ts = int(time.time())  # Unix timestamp at the start of the run, unique across runs
         # Submission i uses call (i mod number of calls). Each pass over the calls gets its own
         # version, so a document id is never submitted twice with the same version.
